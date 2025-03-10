@@ -14,6 +14,7 @@ const Index = () => {
     setIsMounted(true);
   }, []);
 
+  // In handleSendMessage function in Index.tsx
   const handleSendMessage = async (type: 'search' | 'generate', content: string) => {
     const newMessage: Message = {
       id: `user-${Date.now()}`,
@@ -23,33 +24,61 @@ const Index = () => {
     };
   
     const setMessages = type === 'search' ? setSearchMessages : setGenerateMessages;
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => [...prev, newMessage]); // Only add user message initially
   
     try {
-      // Call the appropriate API based on chat type
+      let streamContent = '';
+      const botMessageId = `bot-${Date.now()}`;
+      
+      // Create a single bot message that will be updated
+      setMessages(prev => [...prev, {
+        id: botMessageId,
+        role: 'assistant',
+        content: streamContent,
+        timestamp: new Date(),
+      }]);
+  
+      const onChunk = (chunk: string) => {
+        streamContent += chunk;
+        setMessages(prev => {
+          const lastMessage = prev[prev.length - 1];
+          if (lastMessage.id === botMessageId) {
+            return [
+              ...prev.slice(0, -1),
+              { ...lastMessage, content: streamContent }
+            ];
+          }
+          return prev;
+        });
+      };
+  
       const apiResponse = type === 'search' 
-        ? await codeSearch(content)
-        : await codeGenerate(content);
+        ? await codeSearch(content, onChunk)
+        : await codeGenerate(content, onChunk);
   
-      // Handle API response
-      const botMessage: Message = {
-        id: `bot-${Date.now()}`,
-        role: 'assistant',
-        content: apiResponse.error 
-          ? `Error: ${apiResponse.error}`
-          : apiResponse.data,
-        timestamp: new Date(),
-      };
-  
-      setMessages(prev => [...prev, botMessage]);
+      if (apiResponse.error) {
+        setMessages(prev => {
+          const lastMessage = prev[prev.length - 1];
+          if (lastMessage.id === botMessageId) {
+            return [
+              ...prev.slice(0, -1),
+              { ...lastMessage, content: `Error: ${apiResponse.error}` }
+            ];
+          }
+          return prev;
+        });
+      }
     } catch (error) {
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: 'Failed to connect to the API server. Please try again later.',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => {
+        const lastMessage = prev[prev.length - 1];
+        return [
+          ...prev.slice(0, -1),
+          {
+            ...lastMessage,
+            content: 'Failed to connect to the API server. Please try again later.'
+          }
+        ];
+      });
     }
   };
 

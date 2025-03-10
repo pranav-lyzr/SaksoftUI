@@ -20,6 +20,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   description 
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessageId, setLoadingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,9 +28,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages]);
 
   const handleSend = async (content: string) => {
+    const tempMessageId = `temp-${Date.now()}`;
+    setLoadingMessageId(tempMessageId);
     setIsLoading(true);
-    await onSendMessage(content);
-    setIsLoading(false);
+    
+    try {
+      await onSendMessage(content);
+    } finally {
+      setIsLoading(false);
+      setLoadingMessageId(null);
+    }
   };
 
   return (
@@ -63,13 +71,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
           </div>
         ) : (
-          messages.map(message => (
-            <ChatMessage 
-              key={message.id} 
-              message={message} 
-              botType={type} 
-            />
-          ))
+          <>
+            {messages.map((message,index) => (
+              <ChatMessage 
+                key={message.id} 
+                message={message} 
+                botType={type} 
+                isLoading={isLoading && index === messages.length - 1 && message.role === 'assistant'}
+              />
+            ))}
+            
+          </>
         )}
         <div ref={messagesEndRef} />
       </div>
