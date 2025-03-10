@@ -41,7 +41,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   return (
-    <div className="h-[600px] flex flex-col bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+    <div className="h-[calc(100vh-4rem)] max-h-[900px] min-h-[500px] w-full max-w-[1400px] mx-auto flex flex-col bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+
       <div className="p-6 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div>
