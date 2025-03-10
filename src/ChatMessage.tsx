@@ -3,7 +3,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { materialLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import LoadingDots from "./LoadingDots";
 export type MessageRole = "user" | "assistant";
 export type ChatbotType = "search" | "generate";
 
@@ -219,7 +218,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, botType, isLoading }
                     ),
                   }}
                 >
-                  {prepareMarkdownContent(displayContent || (isLoading ? '🚀' : ''))}
+                  {prepareMarkdownContent(displayContent || (isLoading ? '▋' : ''))}
                 </ReactMarkdown>
               </div>
 }
