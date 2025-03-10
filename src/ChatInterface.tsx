@@ -7,7 +7,7 @@ import { Search, Lightbulb } from 'lucide-react';
 interface ChatInterfaceProps {
   type: ChatbotType;
   messages: Message[];
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, onChunkReceived?: (chunk: string) => void) => void;
   title: string;
   description: string;
 }
@@ -33,7 +33,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setIsLoading(true);
     
     try {
-      await onSendMessage(content);
+      // Create initial bot message immediately
+      const onChunkReceived = (chunk: string) => {
+        onSendMessage(chunk, onChunkReceived);
+      };
+      
+      await onSendMessage(content, onChunkReceived);
     } finally {
       setIsLoading(false);
       setLoadingMessageId(null);

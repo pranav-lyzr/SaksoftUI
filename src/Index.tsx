@@ -15,57 +15,56 @@ const Index = () => {
   }, []);
 
   // In handleSendMessage function in Index.tsx
-  const handleSendMessage = async (type: 'search' | 'generate', content: string) => {
-    const newMessage: Message = {
+  const handleSendMessage = async (type: 'search' | 'generate', content: string, onChunkReceived?: (chunk: string) => void) => {
+    const newUserMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
       content,
       timestamp: new Date(),
     };
   
+    const botMessageId = `bot-${Date.now()}`;
+    const newBotMessage: Message = {
+      id: botMessageId,
+      role: 'assistant', 
+      content: '',
+      timestamp: new Date(),
+    };
+  
     const setMessages = type === 'search' ? setSearchMessages : setGenerateMessages;
-    setMessages(prev => [...prev, newMessage]); // Only add user message initially
+    
+    // Add both messages immediately
+    setMessages(prev => [...prev, newUserMessage, newBotMessage]);
   
     try {
-      let streamContent = '';
-      const botMessageId = `bot-${Date.now()}`;
-      
-      // Create a single bot message that will be updated
-      setMessages(prev => [...prev, {
-        id: botMessageId,
-        role: 'assistant',
-        content: streamContent,
-        timestamp: new Date(),
-      }]);
-  
-      const onChunk = (chunk: string) => {
-        streamContent += chunk;
+      const handleChunk = (chunk: string) => {
         setMessages(prev => {
           const lastMessage = prev[prev.length - 1];
           if (lastMessage.id === botMessageId) {
             return [
               ...prev.slice(0, -1),
-              { ...lastMessage, content: streamContent }
+              { ...lastMessage, content: lastMessage.content + chunk }
             ];
           }
           return prev;
         });
+        // Call the original onChunkReceived if provided
+        if (onChunkReceived) {
+          onChunkReceived(chunk);
+        }
       };
   
       const apiResponse = type === 'search' 
-        ? await codeSearch(content, onChunk)
-        : await codeGenerate(content, onChunk);
+        ? await codeSearch(content, handleChunk)
+        : await codeGenerate(content, handleChunk);
   
       if (apiResponse.error) {
         setMessages(prev => {
           const lastMessage = prev[prev.length - 1];
-          if (lastMessage.id === botMessageId) {
-            return [
-              ...prev.slice(0, -1),
-              { ...lastMessage, content: `Error: ${apiResponse.error}` }
-            ];
-          }
-          return prev;
+          return [
+            ...prev.slice(0, -1),
+            { ...lastMessage, content: `Error: ${apiResponse.error}` }
+          ];
         });
       }
     } catch (error) {
@@ -73,10 +72,7 @@ const Index = () => {
         const lastMessage = prev[prev.length - 1];
         return [
           ...prev.slice(0, -1),
-          {
-            ...lastMessage,
-            content: 'Failed to connect to the API server. Please try again later.'
-          }
+          { ...lastMessage, content: 'Failed to connect to the API server. Please try again later.' }
         ];
       });
     }
