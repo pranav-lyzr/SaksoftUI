@@ -89,7 +89,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <div className="p-6 border-t border-gray-100 bg-white">
         <ChatInput 
           onSendMessage={handleSend}
-          isLoading={isLoading}
+          isLoading={isLoading && loadingMessageId !== null}
           placeholder={`Ask about ${type === 'search' ? 'existing code...' : 'generating code...'}`}
         />
       </div>
