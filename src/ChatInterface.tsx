@@ -72,27 +72,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         ) : (
           <>
-            {messages.map(message => (
+            {messages.map((message,index) => (
               <ChatMessage 
                 key={message.id} 
                 message={message} 
                 botType={type} 
-                isLoading={message.role === 'assistant' && loadingMessageId !== null && message.id === messages[messages.length - 1]?.id}
+                isLoading={isLoading && index === messages.length - 1 && message.role === 'assistant'}
               />
             ))}
-            {isLoading && (
-              <ChatMessage 
-                key="loading"
-                message={{
-                  id: loadingMessageId || 'loading',
-                  role: 'assistant',
-                  content: '',
-                  timestamp: new Date()
-                }}
-                botType={type}
-                isLoading={true}
-              />
-            )}
+            
           </>
         )}
         <div ref={messagesEndRef} />
