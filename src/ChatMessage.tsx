@@ -3,6 +3,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { materialLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import html2pdf from 'html2pdf.js';
+import { createRoot } from 'react-dom/client';
+
 export type MessageRole = "user" | "assistant";
 export type ChatbotType = "search" | "generate";
 
@@ -45,6 +48,106 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, botType, isLoading }
       .trim();
   };
 
+  const downloadAsPDF = (content: string) => {
+    // Create a temporary container
+    const element = document.createElement('div');
+    element.className = 'pdf-container';
+    
+    const style = document.createElement('style');
+    style.textContent = `
+    .pdf-container {
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+    }
+    .pdf-container code {
+      background-color: #f5f5f5;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .pdf-container pre {
+      background-color: #f8f8f8;
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin: 2em 0; /* Increased margin for better spacing */
+    }
+    .pdf-container h1, h2, h3, h4 {
+      margin-top: 1.5em;
+      margin-bottom: 0.75em;
+    }
+    .pdf-container p {
+      margin-bottom: 1.25em; /* Increased paragraph margin */
+    }
+    .pdf-container p + pre {
+      margin-top: 1.5em; /* Increased margin between paragraph and code block */
+    }
+    .pdf-container pre + p {
+      margin-top: 1.5em; /* Increased margin between code block and paragraph */
+    }
+    /* Additional spacing for nested elements */
+    .pdf-container * + pre {
+      margin-top: 1.5em;
+    }
+    .pdf-container pre + * {
+      margin-top: 1.5em;
+    }
+  `;
+    element.appendChild(style);
+  
+    // Create temporary container for React rendering
+    const tempDiv = document.createElement('div');
+    const root = createRoot(tempDiv);
+    
+    // Create a promise to handle the rendering
+    const renderPromise = new Promise((resolve) => {
+      root.render(
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            code: ({inline, children}) => {
+              return inline ? 
+                <code>{children}</code> : 
+                <pre><code>{children}</code></pre>;
+            }
+          }}
+        >
+          {prepareMarkdownContent(content)}
+        </ReactMarkdown>
+      );
+  
+      // Give React a moment to render
+      setTimeout(resolve, 100);
+    });
+  
+    renderPromise.then(() => {
+      element.appendChild(tempDiv);
+      
+      const options = {
+        margin: [0.75, 0.75, 0.75, 0.75],
+        filename: 'chat-response.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          logging: false
+        },
+        jsPDF: { 
+          unit: 'in', 
+          format: 'letter', 
+          orientation: 'portrait'
+        }
+      };
+  
+      html2pdf().set(options).from(element).save().then(() => {
+        // Cleanup
+        root.unmount();
+        element.remove();
+      });
+    });
+  };
+
   return (
     <div
       className={`flex ${
@@ -76,12 +179,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, botType, isLoading }
                 {botType === "search" ? "Code Search" : "Default"}
               </span>
               {!isLoading && (
-                <span className="text-xs text-gray-400 ml-auto">
-                  {message.timestamp.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
+                <>
+                  <span className="text-xs text-gray-400 ml-auto">
+                    {message.timestamp.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  <button
+                    onClick={() => downloadAsPDF(message.content)}
+                    className="ml-2 text-xs bg-gray-700 text-white px-2 py-1 rounded hover:bg-gray-600"
+                  >
+                    Download as PDF
+                  </button>
+                </>
               )}
             </div>
             {
@@ -102,11 +213,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, botType, isLoading }
                           {codeContent}
                         </code>
                       ) : (
-                        <div className="relative group">
-                          <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="relative">
+                          <div className="absolute right-2 top-2 z-10">
                             <button
                               onClick={() => navigator.clipboard.writeText(codeContent)}
-                              className="text-xs bg-gray-700 text-white px-2 py-1 rounded hover:bg-gray-600"
+                              className="text-xs bg-gray-700 text-white px-2 py-1 rounded hover:bg-gray-600 shadow-sm"
                             >
                               Copy
                             </button>
@@ -117,6 +228,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, botType, isLoading }
                             customStyle={{
                               margin: 0,
                               padding: '1rem',
+                              paddingTop: '2.5rem', // Added padding to prevent overlap with copy button
                               backgroundColor: '#f8fafc',
                               fontSize: '0.875rem',
                               borderRadius: '0.375rem',
